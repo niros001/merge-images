@@ -73,6 +73,7 @@ const App = () => {
         const editedData = data;
         if (originalData.width === editedData.width && originalData.height === editedData.height) {
           setLoading(true);
+
           setTimeout(() => {
             const width = originalData.width;
             const height = originalData.height;
@@ -106,7 +107,7 @@ const App = () => {
 
             setLoading(false);
             setFinalPhoto(finalCanvas.toDataURL());
-          }, 200);
+          }, 100);
         } else {
           message.error('Images dimensions should be the same!');
         }
