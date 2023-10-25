@@ -1,8 +1,8 @@
 import {useCallback, useEffect, useState} from 'react';
 import styled from 'styled-components';
-import {debounce} from 'lodash';
-import {Button, Slider, Skeleton, Spin, message} from 'antd';
+import {Button, Slider, Skeleton, message} from 'antd';
 import {EyeOutlined, ArrowRightOutlined, ArrowLeftOutlined} from '@ant-design/icons';
+import html2canvas from 'html2canvas';
 import UploadImage from './components/UploadImage';
 import PreviewImage from './components/PreviewImage';
 
@@ -60,9 +60,14 @@ const Box = styled.div`
   }
 `;
 
-const FinalImage = styled.img`
+const FinalImageContainer = styled.div`
+  position: relative;
   min-width: 100px;
   min-height: 100px;
+`;
+
+const FinalImage = styled.img`
+  position: absolute;
   width: 100%;
   height: 100%;
 `;
@@ -81,79 +86,41 @@ const Preview = styled(Button).attrs({
   margin-top: 5px;
 `;
 
-const getImageData = (img, cb) => {
-  const image = new Image();
-  image.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = image.width;
-    canvas.height = image.height;
-    const context = canvas.getContext('2d');
-    context.drawImage(image, 0, 0);
-    cb(context.getImageData(0, 0, canvas.width, canvas.height));
-  };
-  image.src = img;
-};
-
 const App = () => {
   const [inputValue, setInputValue] = useState(0);
   const [originalPhoto, setOriginalPhoto] = useState();
   const [editedPhoto, setEditedPhoto] = useState();
   const [finalPhoto, setFinalPhoto] = useState();
   const [preview, setPreview] = useState();
-  const [loading, setLoading] = useState(false);
 
-  const onMerge = useCallback(() => {
-    getImageData(originalPhoto, (data) => {
-      const originalData = data;
-      getImageData(editedPhoto, (data) => {
-        const editedData = data;
-        if (originalData.width === editedData.width && originalData.height === editedData.height) {
-          setLoading(true);
-
-          setTimeout(() => {
-            const width = originalData.width;
-            const height = originalData.height;
-            const buffer = new Uint8ClampedArray(width * height * 4);
-            const diffPercent = inputValue / 100;
-
-            for (let x = 0; x < width; x++) {
-              for (let y = 0; y < height; y++) {
-                const index = (y * width + x) * 4;
-                const redDiff = editedData.data[index] - originalData.data[index];
-                const greenDiff = editedData.data[index + 1] - originalData.data[index + 1];
-                const blueDiff = editedData.data[index + 2] - originalData.data[index + 2];
-                const alphaDiff = editedData.data[index + 3] - originalData.data[index + 3];
-
-                buffer[index] = originalData.data[index] + redDiff * diffPercent;
-                buffer[index + 1] = originalData.data[index + 1] + greenDiff * diffPercent;
-                buffer[index + 2] = originalData.data[index + 2] + blueDiff * diffPercent;
-                buffer[index + 3] = originalData.data[index + 3] + alphaDiff * diffPercent;
-              }
-            }
-
-            const finalCanvas = document.createElement('canvas');
-            const ctx = finalCanvas.getContext('2d');
-            finalCanvas.width = width;
-            finalCanvas.height = height;
-
-            const idata = ctx.createImageData(width, height);
-            idata.data.set(buffer);
-
-            ctx.putImageData(idata, 0, 0);
-
-            setLoading(false);
-            setFinalPhoto(finalCanvas.toDataURL());
-          }, 100);
-        } else {
-          message.error('Images dimensions should be the same!');
-        }
-      });
-    });
-  }, [originalPhoto, editedPhoto, inputValue]);
+  const createImage = useCallback(() => {
+    const originalPhotoRef = document.getElementById('original-photo');
+    const editedPhotoRef = document.getElementById('edited-photo');
+    const finalImageContainerRef = document.getElementById('final-image-container');
+    if (originalPhotoRef && editedPhotoRef && finalImageContainerRef) {
+      if (
+        originalPhotoRef?.offsetWidth !== editedPhotoRef?.offsetWidth ||
+        originalPhotoRef?.offsetHeight !== editedPhotoRef?.offsetHeight
+      ) {
+        message.error('Images dimensions should be the same!');
+        setFinalPhoto(null);
+      } else {
+        html2canvas(finalImageContainerRef).then((canvas) => {
+          setFinalPhoto(canvas.toDataURL());
+        });
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    onMerge();
-  }, [inputValue, onMerge]);
+    if (originalPhoto || editedPhoto) {
+      const originalPhotoRef = document.getElementById('original-photo');
+      const editedPhotoRef = document.getElementById('edited-photo');
+      const finalImageContainerRef = document.getElementById('final-image-container');
+      finalImageContainerRef.style.width = `${(originalPhotoRef || editedPhotoRef)?.offsetWidth}px`;
+      finalImageContainerRef.style.height = `${(originalPhotoRef || editedPhotoRef)?.offsetHeight}px`;
+    }
+  }, [originalPhoto, editedPhoto]);
 
   return (
     <Container>
@@ -161,35 +128,43 @@ const App = () => {
         <Box>
           <Title>Original Photo</Title>
           <ImageWrapper>
-            <UploadImage img={originalPhoto} setImg={setOriginalPhoto} />
+            <UploadImage id="original-photo" img={originalPhoto} setImg={setOriginalPhoto} />
           </ImageWrapper>
-          <Preview onClick={() => setPreview([originalPhoto, editedPhoto, finalPhoto][0])}>Preview</Preview>
+          <Preview onClick={() => setPreview(originalPhoto)}>Preview</Preview>
         </Box>
         <ArrowRightOutlined />
         <Box>
           <Title>Final Photo</Title>
           <ImageWrapper>
-            {loading ? (
-              <Spin size="large" />
-            ) : finalPhoto ? (
-              <FinalImage alt="final" src={finalPhoto} />
-            ) : (
+            {!originalPhoto && !editedPhoto ? (
               <Skeleton.Image active />
+            ) : (
+              <FinalImageContainer id="final-image-container">
+                <FinalImage src={originalPhoto} />
+                <FinalImage src={editedPhoto} style={{opacity: inputValue / 100}} />
+              </FinalImageContainer>
             )}
           </ImageWrapper>
-          <Preview onClick={() => setPreview([originalPhoto, editedPhoto, finalPhoto][2])}>Preview</Preview>
+          <Preview onClick={() => setPreview(finalPhoto)}>Preview</Preview>
         </Box>
         <ArrowLeftOutlined />
         <Box>
           <Title>Edited Photo</Title>
           <ImageWrapper>
-            <UploadImage img={editedPhoto} setImg={setEditedPhoto} />
+            <UploadImage id="edited-photo" img={editedPhoto} setImg={setEditedPhoto} />
           </ImageWrapper>
-          <Preview onClick={() => setPreview([originalPhoto, editedPhoto, finalPhoto][1])}>Preview</Preview>
+          <Preview onClick={() => setPreview(editedPhoto)}>Preview</Preview>
         </Box>
       </ImagesWrapper>
       <SliderWrapper>
-        <Slider style={{width: 350, margin: '0 16px'}} min={0} max={100} onChange={debounce(setInputValue, 300)} />
+        <Slider
+          value={inputValue}
+          style={{width: 350, margin: '0 16px'}}
+          min={0}
+          max={100}
+          onChange={setInputValue}
+          onAfterChange={createImage}
+        />
         <b>{inputValue}</b>
       </SliderWrapper>
       <PreviewImage {...{preview, setPreview}} />

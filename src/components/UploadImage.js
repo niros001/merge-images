@@ -2,7 +2,7 @@ import React, {useState, useCallback} from 'react';
 import {LoadingOutlined, PlusOutlined} from '@ant-design/icons';
 import {message, Upload} from 'antd';
 
-const UploadImage = ({img, setImg}) => {
+const UploadImage = ({id, img, setImg}) => {
   const [loading, setLoading] = useState(false);
 
   const beforeUpload = useCallback((file) => {
@@ -44,6 +44,7 @@ const UploadImage = ({img, setImg}) => {
       >
         {img ? (
           <img
+            id={id}
             src={img}
             alt="avatar"
             style={{
