@@ -1,7 +1,8 @@
-import {useCallback, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import styled from 'styled-components';
-import {Button, Slider, InputNumber, Skeleton, Spin, message} from 'antd';
-import {EyeOutlined} from '@ant-design/icons';
+import {debounce} from 'lodash';
+import {Button, Slider, Skeleton, Spin, message} from 'antd';
+import {EyeOutlined, ArrowRightOutlined, ArrowLeftOutlined} from '@ant-design/icons';
 import UploadImage from './components/UploadImage';
 import PreviewImage from './components/PreviewImage';
 
@@ -10,29 +11,64 @@ const Container = styled.div`
   flex: 1;
   flex-direction: column;
   align-items: center;
-  min-height: 100vh;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
 `;
 
-const Row = styled.div`
+const ImagesWrapper = styled.div`
+  display: flex;
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+`;
+
+const SliderWrapper = styled.div`
   display: flex;
   align-items: center;
+  justify-content: center;
+  background-color: #333a;
+  color: white;
+  width: 100%;
+  padding: 15px;
+  margin-top: 15px;
 `;
 
 const Box = styled.div`
   display: flex;
+  flex: 1;
   flex-direction: column;
   margin: 15px;
-  min-width: 300px;
   min-height: 300px;
   justify-content: space-between;
   align-items: center;
   border: 0.5px solid lightgray;
   border-radius: 5px;
+  overflow: auto;
   .ant-upload-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
+    .ant-upload {
+      min-width: 100px;
+      min-height: 100px;
+      width: 100% !important;
+      height: 100% !important;
+      margin-bottom: 0 !important;
+      margin-inline-end: 0 !important;
+    }
   }
+`;
+
+const FinalImage = styled.img`
+  min-width: 100px;
+  min-height: 100px;
+  width: 100%;
+  height: 100%;
+`;
+
+const ImageWrapper = styled.div`
+  padding: 8px;
 `;
 
 const Title = styled.h2``;
@@ -115,38 +151,47 @@ const App = () => {
     });
   }, [originalPhoto, editedPhoto, inputValue]);
 
+  useEffect(() => {
+    onMerge();
+  }, [inputValue, onMerge]);
+
   return (
     <Container>
-      <Row>
+      <ImagesWrapper>
         <Box>
           <Title>Original Photo</Title>
-          <UploadImage img={originalPhoto} setImg={setOriginalPhoto} />
+          <ImageWrapper>
+            <UploadImage img={originalPhoto} setImg={setOriginalPhoto} />
+          </ImageWrapper>
           <Preview onClick={() => setPreview([originalPhoto, editedPhoto, finalPhoto][0])}>Preview</Preview>
         </Box>
+        <ArrowRightOutlined />
+        <Box>
+          <Title>Final Photo</Title>
+          <ImageWrapper>
+            {loading ? (
+              <Spin size="large" />
+            ) : finalPhoto ? (
+              <FinalImage alt="final" src={finalPhoto} />
+            ) : (
+              <Skeleton.Image active />
+            )}
+          </ImageWrapper>
+          <Preview onClick={() => setPreview([originalPhoto, editedPhoto, finalPhoto][2])}>Preview</Preview>
+        </Box>
+        <ArrowLeftOutlined />
         <Box>
           <Title>Edited Photo</Title>
-          <UploadImage img={editedPhoto} setImg={setEditedPhoto} />
+          <ImageWrapper>
+            <UploadImage img={editedPhoto} setImg={setEditedPhoto} />
+          </ImageWrapper>
           <Preview onClick={() => setPreview([originalPhoto, editedPhoto, finalPhoto][1])}>Preview</Preview>
         </Box>
-      </Row>
-      <Row>
-        <Slider style={{width: 200, margin: '0 16px'}} min={0} max={100} value={inputValue} onChange={setInputValue} />
-        <InputNumber min={0} max={100} value={inputValue} onChange={setInputValue} />
-      </Row>
-      <Button type="primary" onClick={onMerge}>
-        MERGE
-      </Button>
-      <Box>
-        <Title>Final Photo</Title>
-        {loading ? (
-          <Spin size="large" />
-        ) : finalPhoto ? (
-          <img alt="final" src={finalPhoto} style={{maxWidth: 100}} />
-        ) : (
-          <Skeleton.Image active />
-        )}
-        <Preview onClick={() => setPreview([originalPhoto, editedPhoto, finalPhoto][2])}>Preview</Preview>
-      </Box>
+      </ImagesWrapper>
+      <SliderWrapper>
+        <Slider style={{width: 350, margin: '0 16px'}} min={0} max={100} onChange={debounce(setInputValue, 300)} />
+        <b>{inputValue}</b>
+      </SliderWrapper>
       <PreviewImage {...{preview, setPreview}} />
     </Container>
   );
