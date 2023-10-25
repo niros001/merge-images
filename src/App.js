@@ -113,7 +113,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (originalPhoto || editedPhoto) {
+    if (originalPhoto && editedPhoto) {
       const originalPhotoRef = document.getElementById('original-photo');
       const editedPhotoRef = document.getElementById('edited-photo');
       const finalImageContainerRef = document.getElementById('final-image-container');
@@ -136,7 +136,7 @@ const App = () => {
         <Box>
           <Title>Final Photo</Title>
           <ImageWrapper>
-            {!originalPhoto && !editedPhoto ? (
+            {!originalPhoto || !editedPhoto ? (
               <Skeleton.Image active />
             ) : (
               <FinalImageContainer id="final-image-container">
